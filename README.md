@@ -25,3 +25,12 @@ Set these secrets in GitHub: `Settings > Secrets and variables > Actions`.
 - `DISCORD_QUESTS_CHANNEL_ID`: channel ID for quest posts
 - `DISCORD_MENTION_COLLECTIBLES`: mention role for collectible posts (role or everyone)
 - `DISCORD_MENTION_QUESTS`: mention role for quest posts
+
+<img width=100% src="./public/1.png" alt="header"/> 
+<img width=100% src="./public/2.png" alt="header"/> 
+<img width=100% src="./public/3.png" alt="header"/> 
+<img width=100% src="./public/4.png" alt="header"/> 
+<img width=100% src="./public/5.png" alt="header"/> 
+<img width=100% src="./public/6.png" alt="header"/> 
+<img width=100% src="./public/7.png" alt="header"/> 
+<img width=100% src="./public/8.png" alt="header"/> 
