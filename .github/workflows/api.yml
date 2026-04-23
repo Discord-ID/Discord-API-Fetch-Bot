@@ -1,0 +1,63 @@
+name: Quest and Collectible Sync
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch to run'
+        required: true
+        default: 'main'
+
+jobs:
+  run-quests-collectibles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      DISCORD_COLLECTIBLES_CHANNEL_ID: ${{ secrets.DISCORD_COLLECTIBLES_CHANNEL_ID }}
+      DISCORD_QUESTS_CHANNEL_ID: ${{ secrets.DISCORD_QUESTS_CHANNEL_ID }}
+      DISCORD_THREAD_AUTO_ARCHIVE_DURATION: 10080
+      DISCORD_MENTION_COLLECTIBLES: ${{ secrets.DISCORD_MENTION_COLLECTIBLES }}
+      DISCORD_MENTION_QUESTS: ${{ secrets.DISCORD_MENTION_QUESTS }}
+      DISCORD_QUESTS_BUTTON_URL: https://discord.gg/vZApbWt8Wp
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.inputs.branch_name || 'main' }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          version: '1.x'
+
+      - name: Install dependencies
+        run: |
+          if [ -f bun.lockb ]; then
+            bun install
+          elif [ -f package-lock.json ]; then
+            npm ci
+          else
+            bun install
+          fi
+
+      - name: Run quest/collectible sync
+        run: bun run src/app.ts
+
+      - name: Commit state changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add state.json || true
+          if ! git diff --cached --quiet -- state.json; then
+            git commit -m 'chore: sync state.json [skip ci]' state.json
+            git push
+          fi
