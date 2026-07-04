@@ -1,6 +1,7 @@
 const QUESTS_CDN = 'https://cdn.discordapp.com';
 
 import { QuestEntry, QuestReward, QuestTask } from '../types/quest';
+import { QuestRegionInfo } from '../api/regions';
 
 type DiscordComponent = Record<string, unknown>;
 
@@ -167,7 +168,40 @@ function questHeader(quest: QuestEntry): string {
   return `## **New Quest** - [${quest.config.messages.quest_name}](${questUrl})`;
 }
 
-function questInfoBlock(quest: QuestEntry): string {
+function formatRegions(region?: QuestRegionInfo): string {
+  if (!region) {
+    return 'Unknown';
+  }
+
+  if (region.isGlobal) {
+    return 'Global';
+  }
+
+  const display = new Intl.DisplayNames(['en'], {
+    type: 'region',
+  });
+
+  const included =
+    region.include.length > 0
+      ? region.include.map((code) => display.of(code) ?? code).join(', ')
+      : 'None';
+
+  const excluded =
+    region.exclude.length > 0
+      ? region.exclude.map((code) => display.of(code) ?? code).join(', ')
+      : '';
+
+  if (excluded) {
+    return `Available: ${included}\nExcluded: ${excluded}`;
+  }
+
+  return included;
+}
+
+function questInfoBlock(
+  quest: QuestEntry,
+  region?: QuestRegionInfo,
+): string {
   const config = quest.config;
   const start = toUnixTimestamp(config.starts_at);
   const end = toUnixTimestamp(config.expires_at);
@@ -183,6 +217,7 @@ function questInfoBlock(quest: QuestEntry): string {
     '# Quest Info',
     `**Duration**: <t:${start}:d> - <t:${end}:d>`,
     `**Reedemable Platforms**: ${platformLabel(config.rewards_config?.platforms)}`,
+    `**Regions**: ${formatRegions(region)}`,
     `**Game**: ${gameTitle} (${gamePublisher})`,
     `**Application**: ${applicationLine}`,
     `**Features**: ${features}`,
@@ -260,6 +295,7 @@ function rewardVideoSection(quest: QuestEntry, reward: QuestReward): DiscordComp
 
 export function buildQuestPayload(
   quest: QuestEntry,
+  region: QuestRegionInfo | undefined,
   mention?: string,
   buttonUrl?: string,
 ): {
@@ -296,7 +332,7 @@ export function buildQuestPayload(
     },
     {
       type: 10,
-      content: questInfoBlock(quest),
+      content: questInfoBlock(quest, region),
     },
     {
       type: 14,
@@ -356,31 +392,31 @@ export function buildQuestPayload(
     },
   ];
 
-  if (mention || buttonUrl) {
-    const mentionString = mention ?? '';
-    const mentionComponent: DiscordComponent = {
-      type: 9,
-      components: [
-        {
-          type: 10,
-          content: mentionString || ' ',
-        },
-      ],
-    };
+  if (mention) {
+  payloadComponents.push({
+    type: 10,
+    content: mention,
+  });
+}
 
-    if (buttonUrl) {
-      mentionComponent.accessory = {
-        type: 2,
-        style: 5,
-        label: 'Discord ID',
-        emoji: null,
-        disabled: false,
-        url: buttonUrl,
-      };
-    }
-
-    payloadComponents.push(mentionComponent);
-  }
+if (buttonUrl) {
+  payloadComponents.push({
+    type: 9,
+    accessory: {
+      type: 2,
+      style: 5,
+      label: "Discord ID",
+      disabled: false,
+      url: buttonUrl,
+    },
+    components: [
+      {
+        type: 10,
+        content: " ",
+      },
+    ],
+  });
+}
 
   return {
     flags: 32768,

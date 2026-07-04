@@ -1,5 +1,6 @@
 import { fetchCollectibles } from './api/collectibles';
 import { fetchQuests } from './api/quests';
+import { fetchRegions } from './api/regions';
 import { env } from './config/env';
 import { createThreadFromMessage, sendMessage } from './discord/rawClient';
 import {
@@ -56,7 +57,13 @@ function isActiveQuest(startsAt: string, expiresAt: string): boolean {
 
 async function run(): Promise<void> {
   const state = loadState();
-  const [collectibles, quests] = await Promise.all([fetchCollectibles(), fetchQuests()]);
+  const [collectibles, quests, regions] = await Promise.all([
+  fetchCollectibles(),
+  fetchQuests(),
+  fetchRegions(),
+]);
+
+console.log(regions);
 
   const collectibleQueue = collectibles
     .map((release) => ({
@@ -129,7 +136,12 @@ async function run(): Promise<void> {
 
   for (let questIndex = 0; questIndex < newQuests.length; questIndex += 1) {
     const quest = newQuests[questIndex];
-    const payload = buildQuestPayload(quest, env.discordMentionQuests ?? '', env.discordQuestsButtonUrl);
+    const payload = buildQuestPayload(
+  quest,
+  regions.get(quest.id),
+  env.discordMentionQuests ?? '',
+  env.discordQuestsButtonUrl
+);
     const orbsFilePath = typeof (globalThis as any).process?.cwd === 'function'
       ? (globalThis as any).process.cwd() + '/assets/orbs.png'
       : './assets/orbs.png';
