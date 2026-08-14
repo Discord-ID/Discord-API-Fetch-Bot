@@ -112,9 +112,21 @@ async function run(): Promise<void> {
     });
 
     for (const group of groups) {
-      const detailPayloads = buildCollectibleDetailPayloads(release, group.type);
+      const detailPayloads = await buildCollectibleDetailPayloads(release, group.type);
       for (const detailPayload of detailPayloads) {
-        await sendMessage(thread.id, detailPayload);
+        const { files, ...payloadWithoutFiles } = detailPayload;
+        await sendMessage(thread.id, {
+          ...payloadWithoutFiles,
+          files,
+        });
+        // Run cleanup for any on-the-fly generated files
+        if (files) {
+          for (const file of files) {
+            if (file.cleanup) {
+              await file.cleanup();
+            }
+          }
+        }
         await delay(DELAY_BETWEEN_POSTS_MS);
       }
     }

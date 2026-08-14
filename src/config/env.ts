@@ -67,4 +67,7 @@ export const env = {
   discordThreadAutoArchiveDuration: readOptional('DISCORD_THREAD_AUTO_ARCHIVE_DURATION')
     ? readRequiredInteger('DISCORD_THREAD_AUTO_ARCHIVE_DURATION')
     : 10080,
+  // Optional base URL for serving static assets (e.g., pre-generated nameplate PNGs)
+  // Example: "https://your-domain.com" or "http://localhost:3000"
+  publicAssetsBaseUrl: readOptional('PUBLIC_ASSETS_BASE_URL'),
 } as const;

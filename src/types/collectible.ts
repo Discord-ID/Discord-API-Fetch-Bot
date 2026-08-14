@@ -33,6 +33,9 @@ export interface CollectibleItemEntry {
 	assets?: CollectibleItemAssetMap;
 	thumbnailPreviewSrc?: string;
 	label?: string | null;
+    // Profile Frame items include a `layers` array where each layer has an `id`.
+    // This field is optional because it is only present for category type 3.
+    layers?: Array<{ id: string }>;
 }
 
 export interface CollectibleProduct {
@@ -66,7 +69,8 @@ export interface CollectibleRelease {
 	mobile_bg_url?: string;
 }
 
-export type CollectibleCategoryType = 0 | 1 | 2;
+// Added support for Profile Frame category (type 3)
+export type CollectibleCategoryType = 0 | 1 | 2 | 3;
 
 export interface CollectibleCategoryGroup {
 	type: CollectibleCategoryType;

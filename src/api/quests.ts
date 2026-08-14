@@ -123,7 +123,9 @@ function normalizeQuest(item: unknown): QuestEntry {
                   }
                 : undefined,
               orb_quantity: typeof reward.orb_quantity === 'number' ? reward.orb_quantity : undefined,
-              premium_orb_quantity: reward.premium_orb_quantity ?? null,
+              // Ensure premium_orb_quantity is a number or null. The API may return an object for this field,
+              // which is not compatible with the expected type.
+              premium_orb_quantity: typeof reward.premium_orb_quantity === 'number' ? reward.premium_orb_quantity : null,
             };
           })
           .filter((reward): reward is NonNullable<typeof reward> => Boolean(reward)),

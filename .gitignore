@@ -5,3 +5,6 @@ dist/
 *.log
 # Local environment variables
 .env
+# Generated nameplate PNGs and map (temporary files)
+nameplate-png-map.json
+public/nameplates/

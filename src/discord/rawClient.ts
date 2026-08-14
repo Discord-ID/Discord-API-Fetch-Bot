@@ -2,7 +2,8 @@ import { env } from '../config/env';
 
 type DiscordFileAttachment = {
   name: string;
-  filePath: string;
+  filePath?: string;
+  buffer?: Buffer;
 };
 
 type DiscordMessagePayload = {
@@ -79,8 +80,22 @@ export async function sendMessage(channelId: string, payload: DiscordMessagePayl
 
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
-    const handle = Bun.file(file.filePath);
-    formData.set(`files[${index}]`, handle, file.name);
+    let fileHandle: Blob;
+    
+    if (file.buffer) {
+      // Use buffer directly - convert Buffer to Uint8Array for Blob compatibility
+      // Specify image/png MIME type so Discord recognizes it as a PNG image
+      fileHandle = new Blob([new Uint8Array(file.buffer)], { type: 'image/png' });
+      console.log(`[DEBUG] Uploading buffer file: ${file.name}, size: ${file.buffer.length} bytes`);
+    } else if (file.filePath) {
+      // Use file from disk
+      fileHandle = Bun.file(file.filePath);
+      console.log(`[DEBUG] Uploading file from disk: ${file.name}, path: ${file.filePath}`);
+    } else {
+      throw new Error(`File attachment ${file.name} has neither buffer nor filePath`);
+    }
+    
+    formData.set(`files[${index}]`, fileHandle, file.name);
   }
 
   const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
@@ -104,10 +119,13 @@ export async function sendMessage(channelId: string, payload: DiscordMessagePayl
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[DEBUG] Discord API upload failed with status ${response.status}: ${errorText}`);
       throw new Error(`Discord API request failed for /channels/${channelId}/messages with status ${response.status}: ${errorText}`);
     }
 
-    return response.json() as Promise<DiscordMessageResponse>;
+    const result = await response.json() as DiscordMessageResponse;
+    console.log(`[DEBUG] Discord API upload succeeded, message ID: ${result.id}`);
+    return result;
   }
 
   throw new Error(`Discord API file upload failed for /channels/${channelId}/messages after ${maxAttempts} rate limit retries`);

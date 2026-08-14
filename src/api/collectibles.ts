@@ -194,19 +194,31 @@ function normalizeCollectible(item: unknown): CollectibleRelease {
 					const entryRecord = readObject(entry, `products[${index}].items[${itemIndex}]`);
 					const assets = readOptionalObject(entryRecord.assets);
 
-					return {
-						type: readNumber(entryRecord.type, `products[${index}].items[${itemIndex}].type`),
-						sku_id: readString(entryRecord.sku_id, `products[${index}].items[${itemIndex}].sku_id`),
-						asset: readOptionalString(entryRecord.asset),
-						assets: assets
-							? {
-								static_image_url: readOptionalString(assets.static_image_url),
-								animated_image_url: readOptionalString(assets.animated_image_url),
-							}
-							: undefined,
-						thumbnailPreviewSrc: readOptionalString(entryRecord.thumbnailPreviewSrc),
-						label: readOptionalNullableString(entryRecord.label),
-					};
+								// Extract optional `layers` array for profile frames.
+								const rawLayers = entryRecord.layers;
+								const layers = Array.isArray(rawLayers)
+									? rawLayers.map((layer, layerIdx) => {
+											const layerRec = typeof layer === 'object' && layer !== null ? layer : {};
+											return {
+												id: readString((layerRec as any).id, `products[${index}].items[${itemIndex}].layers[${layerIdx}].id`),
+											};
+										})
+									: undefined;
+
+								return {
+												type: readNumber(entryRecord.type, `products[${index}].items[${itemIndex}].type`),
+												sku_id: readString(entryRecord.sku_id, `products[${index}].items[${itemIndex}].sku_id`),
+												asset: readOptionalString(entryRecord.asset),
+												assets: assets
+														? {
+																static_image_url: readOptionalString(assets.static_image_url),
+																animated_image_url: readOptionalString(assets.animated_image_url),
+														}
+														: undefined,
+												thumbnailPreviewSrc: readOptionalString(entryRecord.thumbnailPreviewSrc),
+												label: readOptionalNullableString(entryRecord.label),
+												layers,
+										};
 				})
 					: [],
 				type: readNumber(productRecord.type, `products[${index}].type`),
