@@ -254,7 +254,7 @@ async function buildProductSectionWithBanner(product: CollectibleProduct, catego
       components: [
         {
           type: 10,
-          content: `[**${product.name}**](<https://discord.com/shop#itemSkuId=${product.sku_id}>) (\`${product.sku_id}\`) \`��\`\n> Price: ${priceLine}\n> ${categoryLabel(categoryType)} ID: \`${categoryType}\``,
+          content: `[**${product.name}**](<https://discord.com/shop#itemSkuId=${product.sku_id}>) (\`${product.sku_id}\`) \`►\`\n> Price: ${priceLine}\n> ${categoryLabel(categoryType)} ID: \`${categoryType}\``,
         },
       ],
     },
