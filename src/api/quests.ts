@@ -29,7 +29,13 @@ function readStringArray(value: unknown): string[] {
     return [];
   }
 
-  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  return value
+    .filter(
+      (entry): entry is string | number =>
+        (typeof entry === 'string' && entry.length > 0) ||
+        (typeof entry === 'number' && Number.isFinite(entry)),
+    )
+    .map(String);
 }
 
 function readNumberArray(value: unknown): number[] {
@@ -37,7 +43,10 @@ function readNumberArray(value: unknown): number[] {
     return [];
   }
 
-  return value.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry));
+  return value.filter(
+    (entry): entry is number =>
+      typeof entry === 'number' && Number.isFinite(entry),
+  );
 }
 
 function normalizeQuest(item: unknown): QuestEntry {
@@ -45,28 +54,82 @@ function normalizeQuest(item: unknown): QuestEntry {
     throw new Error('Quest entry must be an object');
   }
 
-  const config = item.config;
-  if (!isRecord(config)) {
-    throw new Error('Quest config is missing');
-  }
+  /*
+   * Discord Quest API changed its structure.
+   *
+   * Old format:
+   * {
+   *   id: "...",
+   *   config: {
+   *     starts_at: "...",
+   *     expires_at: "...",
+   *     application: {...}
+   *   }
+   * }
+   *
+   * New format:
+   * {
+   *   id: "...",
+   *   starts_at: "...",
+   *   expires_at: "...",
+   *   application: {...}
+   * }
+   *
+   * Support both formats.
+   */
+  const config = isRecord(item.config) ? item.config : item;
 
-  const application = isRecord(config.application) ? config.application : {};
-  const assets = isRecord(config.assets) ? config.assets : {};
-  const messages = isRecord(config.messages) ? config.messages : {};
-  const taskConfigV2 = isRecord(config.task_config_v2) ? config.task_config_v2 : undefined;
-  const rewardsConfig = isRecord(config.rewards_config) ? config.rewards_config : undefined;
+  const application = isRecord(config.application)
+    ? config.application
+    : {};
 
-  const tasksRaw = taskConfigV2 && isRecord(taskConfigV2.tasks) ? taskConfigV2.tasks : {};
-  const tasks: Record<string, { type: string; target: number; assets?: any }> = {};
+  const assets = isRecord(config.assets)
+    ? config.assets
+    : {};
+
+  const messages = isRecord(config.messages)
+    ? config.messages
+    : {};
+
+  const taskConfigV2 = isRecord(config.task_config_v2)
+    ? config.task_config_v2
+    : undefined;
+
+  const rewardsConfig = isRecord(config.rewards_config)
+    ? config.rewards_config
+    : undefined;
+
+  const tasksRaw =
+    taskConfigV2 && isRecord(taskConfigV2.tasks)
+      ? taskConfigV2.tasks
+      : {};
+
+  const tasks: Record<
+    string,
+    {
+      type: string;
+      target: number;
+      assets?: any;
+    }
+  > = {};
 
   for (const [key, value] of Object.entries(tasksRaw)) {
     if (!isRecord(value)) {
       continue;
     }
 
-    const typeValue = readOptionalString(value.type) ?? key;
-    const targetValue = typeof value.target === 'number' ? value.target : 0;
-    const assetsValue = isRecord(value.assets) ? value.assets : undefined;
+    const typeValue =
+      readOptionalString(value.type) ?? key;
+
+    const targetValue =
+      typeof value.target === 'number'
+        ? value.target
+        : 0;
+
+    const assetsValue =
+      isRecord(value.assets)
+        ? value.assets
+        : undefined;
 
     tasks[key] = {
       type: typeValue,
@@ -75,34 +138,98 @@ function normalizeQuest(item: unknown): QuestEntry {
     };
   }
 
-  const rewardsRaw = rewardsConfig && Array.isArray(rewardsConfig.rewards) ? rewardsConfig.rewards : [];
+  const rewardsRaw =
+    rewardsConfig &&
+    Array.isArray(rewardsConfig.rewards)
+      ? rewardsConfig.rewards
+      : [];
+
+  const questId = readString(item.id, 'id');
+
+  /*
+   * New API does not have config.id.
+   * Use the quest ID as the internal config ID.
+   */
+  const configId =
+    readOptionalString(config.id) ?? questId;
 
   return {
-    id: readString(item.id, 'id'),
+    id: questId,
+
     config: {
-      id: readString(config.id, 'config.id'),
-      starts_at: readString(config.starts_at, 'config.starts_at'),
-      expires_at: readString(config.expires_at, 'config.expires_at'),
-      features: readStringArray(config.features),
+      id: configId,
+
+      starts_at: readString(
+        config.starts_at,
+        'starts_at',
+      ),
+
+      expires_at: readString(
+        config.expires_at,
+        'expires_at',
+      ),
+
+      features: readStringArray(
+        config.features,
+      ),
+
       application: {
-        id: readString(application.id, 'config.application.id'),
-        name: readString(application.name, 'config.application.name'),
-        link: readOptionalString(application.link),
+        id: readString(
+          application.id,
+          'application.id',
+        ),
+
+        name: readString(
+          application.name,
+          'application.name',
+        ),
+
+        link: readOptionalString(
+          application.link,
+        ),
       },
+
       assets: {
-        hero: readOptionalString(assets.hero),
-        quest_bar_hero: readOptionalString(assets.quest_bar_hero),
-        hero_video: readOptionalString(assets.hero_video) ?? null,
-        quest_bar_hero_video: readOptionalString(assets.quest_bar_hero_video) ?? null,
+        hero: readOptionalString(
+          assets.hero,
+        ),
+
+        quest_bar_hero: readOptionalString(
+          assets.quest_bar_hero,
+        ),
+
+        hero_video:
+          readOptionalString(
+            assets.hero_video,
+          ) ?? null,
+
+        quest_bar_hero_video:
+          readOptionalString(
+            assets.quest_bar_hero_video,
+          ) ?? null,
       },
+
       messages: {
-        quest_name: readString(messages.quest_name, 'config.messages.quest_name'),
-        game_title: readOptionalString(messages.game_title),
-        game_publisher: readOptionalString(messages.game_publisher),
+        quest_name: readString(
+          messages.quest_name,
+          'messages.quest_name',
+        ),
+
+        game_title:
+          readOptionalString(
+            messages.game_title,
+          ),
+
+        game_publisher:
+          readOptionalString(
+            messages.game_publisher,
+          ),
       },
+
       task_config_v2: {
         tasks,
       },
+
       rewards_config: {
         rewards: rewardsRaw
           .map((reward) => {
@@ -110,51 +237,103 @@ function normalizeQuest(item: unknown): QuestEntry {
               return undefined;
             }
 
-            const rewardMessages = isRecord(reward.messages) ? reward.messages : undefined;
+            const rewardMessages =
+              isRecord(reward.messages)
+                ? reward.messages
+                : undefined;
 
             return {
-              type: typeof reward.type === 'number' ? reward.type : 0,
-              sku_id: readOptionalString(reward.sku_id),
-              asset: readOptionalString(reward.asset),
-              asset_video: readOptionalString(reward.asset_video) ?? null,
+              type:
+                typeof reward.type === 'number'
+                  ? reward.type
+                  : 0,
+
+              sku_id:
+                readOptionalString(
+                  reward.sku_id,
+                ),
+
+              asset:
+                readOptionalString(
+                  reward.asset,
+                ),
+
+              asset_video:
+                readOptionalString(
+                  reward.asset_video,
+                ) ?? null,
+
               messages: rewardMessages
                 ? {
-                    name: readOptionalString(rewardMessages.name),
+                    name:
+                      readOptionalString(
+                        rewardMessages.name,
+                      ),
                   }
                 : undefined,
-              orb_quantity: typeof reward.orb_quantity === 'number' ? reward.orb_quantity : undefined,
-              // Ensure premium_orb_quantity is a number or null. The API may return an object for this field,
-              // which is not compatible with the expected type.
-              premium_orb_quantity: typeof reward.premium_orb_quantity === 'number' ? reward.premium_orb_quantity : null,
+
+              orb_quantity:
+                typeof reward.orb_quantity === 'number'
+                  ? reward.orb_quantity
+                  : undefined,
+
+              premium_orb_quantity:
+                reward.premium_orb_quantity ?? null,
             };
           })
-          .filter((reward): reward is NonNullable<typeof reward> => Boolean(reward)),
-        rewards_expire_at: rewardsConfig ? readOptionalString(rewardsConfig.rewards_expire_at) : undefined,
-        platforms: rewardsConfig ? readNumberArray(rewardsConfig.platforms) : [],
+          .filter(
+            (
+              reward,
+            ): reward is NonNullable<typeof reward> =>
+              Boolean(reward),
+          ),
+
+        rewards_expire_at:
+          rewardsConfig
+            ? readOptionalString(
+                rewardsConfig.rewards_expire_at,
+              )
+            : undefined,
+
+        platforms:
+          rewardsConfig
+            ? readNumberArray(
+                rewardsConfig.platforms,
+              )
+            : [],
       },
     },
   };
 }
 
 export async function fetchQuests(): Promise<QuestEntry[]> {
-  const payload = await fetchJson<unknown>(QUESTS_ENDPOINT);
+  const payload =
+    await fetchJson<unknown>(
+      QUESTS_ENDPOINT,
+    );
 
   if (!Array.isArray(payload)) {
-    throw new Error('Quests API response must be an array');
+    throw new Error(
+      'Quests API response must be an array',
+    );
   }
 
   const normalized: QuestEntry[] = [];
 
   for (const item of payload) {
     try {
-      normalized.push(normalizeQuest(item));
+      normalized.push(
+        normalizeQuest(item),
+      );
     } catch {
       continue;
     }
   }
 
   if (normalized.length === 0) {
-    throw new Error('Quests API did not return any valid quest entries');
+    throw new Error(
+      'Quests API did not return any valid quest entries',
+    );
   }
 
   return normalized;
